@@ -1,26 +1,35 @@
-# Imagen base con PHP 8.2 y Composer
-FROM php:8.2-cli
+# Usar PHP 8.2 con Apache
+FROM php:8.2-apache
 
-# Instalar dependencias necesarias
+# Instalar extensiones necesarias y herramientas
 RUN apt-get update && apt-get install -y \
+    libzip-dev \
+    zip \
     unzip \
     git \
-    libzip-dev \
-    libpq-dev \
-    && docker-php-ext-install zip pdo pdo_mysql pdo_pgsql
+    && docker-php-ext-install pdo pdo_mysql zip
 
-# Instalar Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# Habilitar mod_rewrite de Apache
+RUN a2enmod rewrite
 
-# Configurar directorio de trabajo
-WORKDIR /app
-COPY . .
+# Copiar Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Instalar dependencias Laravel
+# Copiar proyecto al contenedor
+COPY . /var/www/html/
+
+# Establecer permisos
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Instalar dependencias de Laravel
 RUN composer install --no-dev --prefer-dist
 
-# Exponer puerto para Laravel
-EXPOSE 8000
+# Generar key
+RUN php artisan key:generate
+#RUN php artisan migrate --force  # Descomentar solo si la DB está lista
 
-# Comando para arrancar Laravel
-CMD php artisan serve --host 0.0.0.0 --port 8000
+# Exponer el puerto
+EXPOSE 80
+
+# Comando por defecto
+CMD ["apache2-foreground"]
