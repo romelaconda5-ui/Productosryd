@@ -1,54 +1,35 @@
 # Usar PHP 8.2 con Apache
 FROM php:8.2-apache
 
-# Instalar herramientas y extensiones necesarias
+# Instalar dependencias necesarias y extensiones
 RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
     libzip-dev \
+    zip \
+    unzip \
+    git \
     libpq-dev \
     libonig-dev \
     libxml2-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libicu-dev \
-    libexif-dev \
-    && docker-php-ext-install \
-       pdo \
-       pdo_mysql \
-       pdo_pgsql \
-       zip \
-       exif \
-       intl \
-       mbstring \
-       bcmath \
-       gd \
-       opcache
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif xml zip \
+    && a2enmod rewrite
 
-# Habilitar mod_rewrite
-RUN a2enmod rewrite
-
-# Copiar Composer
+# Instalar Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Establecer directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar todo el proyecto
+# Copiar todos los archivos del proyecto
 COPY . .
 
-# Establecer permisos
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Ajustar permisos
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Instalar dependencias de Laravel
-RUN composer install --no-dev --prefer-dist --ignore-platform-reqs
+# Instalar dependencias de PHP sin ejecutar scripts de post-autoload
+RUN composer install --no-dev --prefer-dist --no-scripts --no-interaction
 
-# Generar APP_KEY
-RUN php artisan key:generate
-
-# Exponer puerto de Apache
+# Exponer puerto 80
 EXPOSE 80
 
-# Comando por defecto
+# Comando por defecto para arrancar Apache
 CMD ["apache2-foreground"]
